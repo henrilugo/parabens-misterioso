@@ -22,6 +22,7 @@
             opacity: 0;
             animation: confetti-fall 2s linear forwards;
             pointer-events: none;
+            z-index: 99;
         }
         @keyframes confetti-fall {
             from { transform: translateY(-50vh) rotate(0deg); opacity: 1; }
@@ -86,8 +87,7 @@
             opacity: 1;
         }
         #photoDisplay {
-            /* max-height: 400px; Removido para permitir que a imagem cresça mais */
-            width: 100%; /* Garante que a imagem ocupe 100% da largura do contêiner */
+            width: 100%;
             object-fit: contain;
             background: #f9fafb;
             opacity: 1;
@@ -121,9 +121,8 @@
                 min-height: auto;
             }
             #photoDisplay {
-                /* Em telas menores, removemos o max-height para a imagem ficar maior */
                 max-height: none;
-                max-width: 100%; /* Garante que a imagem não ultrapasse a largura do contêiner */
+                max-width: 100%;
             }
             .modal-content {
                 padding: 1rem;
@@ -192,9 +191,16 @@
                     <button id="nextBtn" class="bg-gray-100 hover:bg-pink-100 text-gray-800 p-3 rounded-full shadow transition-colors duration-300 text-lg">▶</button>
                 </div>
             </div>
-            <button id="openPhotoModal" class="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-lg shadow-sm mb-4 transition-all duration-300 text-sm">
-                + Adicionar Foto
-            </button>
+            
+            <div class="flex flex-wrap justify-center items-center gap-4 mb-4">
+                <button id="openPhotoModal" class="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-lg shadow-sm transition-all duration-300 text-sm">
+                    + Adicionar Foto
+                </button>
+                <button id="deletePhotoBtn" class="bg-gray-100 hover:bg-red-200 text-gray-700 px-4 py-2 rounded-lg shadow-sm transition-all duration-300 text-sm opacity-100">
+                    Excluir Foto
+                </button>
+            </div>
+            
             <button id="surpriseBtn" class="w-full bg-gradient-to-r from-pink-500 to-red-500 hover:from-pink-600 hover:to-red-600 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-300 mb-6 shadow-md animate-pulse text-sm">
                 Mensagem especial
             </button>
@@ -264,7 +270,6 @@
             }, 800);
         }
         enterBtn.addEventListener('click', hideIntro);
-        // Remove automaticamente após 5 segundos
         setTimeout(hideIntro, 5000);
 
         // Fotos fixas (não podem ser excluídas)
@@ -273,11 +278,14 @@
             "img/foto2.png",
             "img/foto3.png"
         ];
-        // Fotos do usuário
         let userPhotos = JSON.parse(localStorage.getItem('userPhotos')) || [];
         let currentPhotoIndex = 0;
 
-        // Atualiza foto principal com animação
+        const photoDisplay = document.getElementById('photoDisplay');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const deletePhotoBtn = document.getElementById('deletePhotoBtn');
+
         function updatePhoto() {
             const allPhotos = [...fixedPhotos, ...userPhotos];
             if (allPhotos.length > 0) {
@@ -290,12 +298,18 @@
                         photoDisplay.classList.add('show-img');
                     };
                 }, 100);
+
+                if (currentPhotoIndex >= fixedPhotos.length) {
+                    deletePhotoBtn.style.display = 'inline-block';
+                } else {
+                    deletePhotoBtn.style.display = 'none';
+                }
             } else {
                 photoDisplay.src = "";
+                deletePhotoBtn.style.display = 'none';
             }
         }
 
-        // Botão de adicionar foto
         const addPhotoBtn = document.getElementById('addPhotoBtn');
         const addPhotoInput = document.getElementById('addPhotoInput');
         addPhotoBtn.addEventListener('click', () => {
@@ -314,16 +328,11 @@
             }
         });
 
-        // Botão personalizado para escolher arquivo
         const fakeFileBtn = document.getElementById('fakeFileBtn');
         fakeFileBtn.addEventListener('click', () => {
             addPhotoInput.click();
         });
 
-        // Navegação das fotos
-        const photoDisplay = document.getElementById('photoDisplay');
-        const prevBtn = document.getElementById('prevBtn');
-        const nextBtn = document.getElementById('nextBtn');
         prevBtn.addEventListener('click', () => {
             const allPhotos = [...fixedPhotos, ...userPhotos];
             if (allPhotos.length > 0) {
@@ -339,7 +348,25 @@
             }
         });
 
-        // Modal de foto
+        deletePhotoBtn.addEventListener('click', () => {
+            const allPhotos = [...fixedPhotos, ...userPhotos];
+            if (currentPhotoIndex >= fixedPhotos.length) {
+                const userPhotoIndex = currentPhotoIndex - fixedPhotos.length;
+                
+                userPhotos.splice(userPhotoIndex, 1);
+                
+                localStorage.setItem('userPhotos', JSON.stringify(userPhotos));
+                
+                currentPhotoIndex = (currentPhotoIndex - 1 + (fixedPhotos.length + userPhotos.length)) % (fixedPhotos.length + userPhotos.length);
+                if (currentPhotoIndex < 0 && (fixedPhotos.length + userPhotos.length) > 0) {
+                    currentPhotoIndex = (fixedPhotos.length + userPhotos.length) - 1;
+                } else if ((fixedPhotos.length + userPhotos.length) === 0) {
+                    currentPhotoIndex = 0;
+                }
+                updatePhoto();
+            }
+        });
+
         const photoModal = document.getElementById('photoModal');
         const openPhotoModal = document.getElementById('openPhotoModal');
         const closePhotoModal = document.getElementById('closePhotoModal');
@@ -351,20 +378,17 @@
             addPhotoInput.value = '';
         });
 
-        // Lugares fixos
         const fixedPlaces = [
             { nome: "Uma viagem à praia", desc: "para ver o pôr do sol juntos." },
             { nome: "Beira-Rio", desc: "o clássico pode dividir, mas contigo eu só quero somar." },
             { nome: "Uma sessão de cinema em casa", desc: "para ver todos os filmes que você ama." }
         ];
 
-        // Lugares dinâmicos com localStorage e opção de excluir
         let places = JSON.parse(localStorage.getItem('places')) || [];
 
         function renderPlaces() {
             const ul = document.getElementById('placesList');
             ul.innerHTML = '';
-            // Renderiza lugares fixos SEM botão de excluir
             fixedPlaces.forEach(place => {
                 const li = document.createElement('li');
                 li.className = "bg-pink-50 p-4 rounded-lg shadow-sm flex justify-between items-center";
@@ -376,7 +400,6 @@
                 `;
                 ul.appendChild(li);
             });
-            // Renderiza lugares adicionados COM botão de excluir
             places.forEach((place, idx) => {
                 const li = document.createElement('li');
                 li.className = "bg-pink-50 p-4 rounded-lg shadow-sm flex justify-between items-center";
@@ -391,7 +414,6 @@
                 `;
                 ul.appendChild(li);
             });
-            // Adiciona evento de excluir
             ul.querySelectorAll('.icon-btn').forEach(btn => {
                 btn.onclick = function() {
                     const idx = parseInt(btn.getAttribute('data-idx'));
@@ -403,7 +425,6 @@
         }
         renderPlaces();
 
-        // Modal de lugar
         const placeModal = document.getElementById('placeModal');
         const openPlaceModal = document.getElementById('openPlaceModal');
         const closePlaceModal = document.getElementById('closePlaceModal');
@@ -432,7 +453,6 @@
             }
         });
 
-        // Mensagem especial
         const surpriseBtn = document.getElementById('surpriseBtn');
         const surpriseMessage = document.getElementById('surpriseMessage');
         surpriseBtn.addEventListener('click', () => {
@@ -441,7 +461,6 @@
             startConfetti();
         });
 
-        // Navegação entre seções
         const navLinks = document.querySelectorAll('.nav-link');
         const sections = document.querySelectorAll('.section-content');
         navLinks.forEach(link => {
@@ -453,11 +472,10 @@
             });
         });
 
-
-        // Confetti
+        // Mais Confetes!
         const confettiColors = ['#ef4444', '#f87171', '#fecaca', '#fce7f3'];
         function startConfetti() {
-            for (let i = 0; i < 50; i++) createConfetti();
+            for (let i = 0; i < 400; i++) createConfetti();
         }
         function createConfetti() {
             const confetti = document.createElement('div');
@@ -465,22 +483,20 @@
             confetti.style.backgroundColor = confettiColors[Math.floor(Math.random() * confettiColors.length)];
             confetti.style.left = Math.random() * 100 + 'vw';
             confetti.style.top = Math.random() * 10 + 'vh';
-            confetti.style.animationDelay = Math.random() * 2 + 's';
+            confetti.style.animationDelay = Math.random() * 1 + 's';
             document.body.appendChild(confetti);
             setTimeout(() => confetti.remove(), 3000);
         }
 
-        // Corações animados no fundo
         setInterval(() => {
             const heart = document.createElement('div');
             heart.className = 'heart';
             heart.style.left = Math.random() * 100 + 'vw';
-            heart.style.animationDelay = Math.random() * 2 + 's';
+            heart.style.animationDelay = Math.random() * 3 + 's';
             document.getElementById('hearts').appendChild(heart);
             setTimeout(() => heart.remove(), 4000);
         }, 500);
 
-        // Inicializa galeria de fotos
         updatePhoto();
     </script>
 </body>
